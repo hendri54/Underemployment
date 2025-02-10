@@ -1,0 +1,13 @@
+name = "Underemployment"
+uuid = "0bcf9fa5-5724-48f9-8a73-32071f8501b8"
+authors = ["hendri54 <hendricksl@protonmail.com> and contributors"]
+version = "1.0.0-DEV"
+
+[compat]
+julia = "1.6.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
