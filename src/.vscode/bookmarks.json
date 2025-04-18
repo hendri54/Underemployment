@@ -1,0 +1,94 @@
+{
+	"files": [
+		{
+			"path": "figures.jl",
+			"bookmarks": [
+				{
+					"line": 142,
+					"column": 42,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "stats.jl",
+			"bookmarks": [
+				{
+					"line": 470,
+					"column": 1,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "bls_data.jl",
+			"bookmarks": [
+				{
+					"line": 18,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 76,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 168,
+					"column": 19,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "occup_crosswalk.jl",
+			"bookmarks": [
+				{
+					"line": 89,
+					"column": 27,
+					"label": ""
+				},
+				{
+					"line": 321,
+					"column": 21,
+					"label": ""
+				},
+				{
+					"line": 416,
+					"column": 19,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "earn_regression.jl",
+			"bookmarks": [
+				{
+					"line": 78,
+					"column": 0,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "stats_occup.jl",
+			"bookmarks": [
+				{
+					"line": 29,
+					"column": 19,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "prepare_data.jl",
+			"bookmarks": [
+				{
+					"line": 280,
+					"column": 4,
+					"label": ""
+				}
+			]
+		}
+	]
+}

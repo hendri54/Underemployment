@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "src"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"julia.environmentPath": "/Users/lutz/Documents/projects/p2025/underemployment/Underemployment"
+	}
+}
