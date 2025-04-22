@@ -17,14 +17,16 @@ Delete DataFrame rows where one variable is missing.
 Report fraction of total mass deleted.
 """
 function delete_missing_rows!(dfCps :: AbstractDataFrame, varNameIn; 
-        massVar = WeightVar, io = stdout)
+        massVar = WeightVar, io = stdout, silent = false)
     varName = var_symbol(varNameIn);
     @assert string(varName) in names(dfCps);
     nrows = nrow(dfCps);
-    totalMass = sum(skipmissing(dfCps[!, massVar]));
+    if !silent
+        totalMass = sum(skipmissing(dfCps[!, massVar]));
+    end
     filter!(row -> !ismissing(getproperty(row, varName)), dfCps);
     nDrop = nrows - nrow(dfCps);
-    if nDrop > 0
+    if (nDrop > 0)  &&  !silent
         droppedMass = totalMass - sum(skipmissing(dfCps[!, massVar]));
         droppedFrac = droppedMass / totalMass;
         info_msg(io, "  Dropped $nDrop rows with missing $(varName) info (fraction ",

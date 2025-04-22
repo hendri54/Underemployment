@@ -33,6 +33,7 @@ include("dataframes.jl");
 
 include("prepare_data.jl");
 include("derived_vars.jl");
+include("derived_vars_test.jl");
 include("earn_regression.jl");
 include("earn_regressions_test.jl");
 include("stats.jl");

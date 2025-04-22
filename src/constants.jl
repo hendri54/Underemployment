@@ -4,7 +4,10 @@ end
 
 const FigureFile = FileType(".pdf");
 const TextFile = FileType(".txt");
+const DataFile = FileType(".mat");
 const FigExtension = ".pdf";
+const DataExtension = ".mat";
+const TextExtension = ".txt";
 
 # Variables in the original dataset. These are not used after importing.
 const OccVar = :occ10ly;
@@ -23,6 +26,8 @@ const GradOccLabel = "Graduate";
 const NonGradOccLabel = "Non-graduate";
 const GradLabel = "Graduate";
 const NonGradLabel = "Non-graduate";
+const MaleLabel = "male";
+const FemaleLabel = "female";
 
 const MinYear = 1968;
 const MaxYear = 2024;
@@ -54,6 +59,7 @@ struct VarInfo
     label :: String
 end
 
+# const Gender = VarInfo("gender", "Gender");
 const LogOccupWage = VarInfo("logOccupWage", "Log occupational wage");
 const MeanLogOccupWage = VarInfo("meanLogOccupWage", 
     "Mean log occupational wage");
@@ -72,6 +78,5 @@ const FracUnder = VarInfo("fracUnder", "Fraction underemployed");
 var_symbol(v :: VarInfo) = Symbol(v.name);
 var_label(v :: VarInfo) = v.name;
 fig_label(v :: VarInfo) = v.label;
-fig_name(v :: VarInfo) = v.name;
 
 # -----------------

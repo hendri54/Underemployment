@@ -1,26 +1,35 @@
 """
 Compute all stats.
 """
-function run_stats(df, ds; io = stdout)
+function run_stats(dfCps, ds; io = stdout)
     gradOccVar = GradOccs;
-    # for (gradOccVar, gradsGradOccVar) in grad_occ_definitions()
-        show_stats_by_year(df, ds; gradOccVar);
-        show_frac_under_age_year(df, ds; gradOccVar);
-        show_grads_in_gradoccs(df, ds; gradOccVar);
-        show_earnings_stats(df, ds; gradOccVar);
-        for groups in (YearGroups, [AgeGroups, YearGroups])
-            save_grouped_stats(df, groups, ds; gradOccVar);
-        end
-    # end
+    show_stats_by_year(dfCps, ds; gradOccVar);
+    show_stats_grouped(dfCps, Years, FracUnder, Gender, ds);
+    show_frac_under_age_year(dfCps, ds; gradOccVar);
+    show_grads_in_gradoccs(dfCps, ds; gradOccVar);
+    for genderLbl in fixed_codes(Gender)
+        show_earnings_stats(dfCps, ds; gradOccVar, genderLbl);
+    end
+    for groups in (YearGroups, [AgeGroups, YearGroups])
+        save_grouped_stats(dfCps, groups, ds; gradOccVar);
+    end
 
     # Scatter plots with 3m obs don't work
-    # show_scatter_plots(df, ds);
-    show_frac_by_occFracBa(df, ds);
-    show_earn_quantiles(df, ds);
-    show_occup_stats(df, ds);
+    # show_scatter_plots(dfCps, ds);
+
+    for gradLbl in (nothing, NonGradLabel, GradLabel)
+        show_frac_by_fracRequireBA(dfCps, ds; yearVar = YearGroups, gradLbl)        
+        show_frac_by_occFracBa(dfCps, ds; gradLbl);
+        for refYear in (first(year_group_labels(ds)), last(year_group_labels(ds)));
+            show_frac_by_occFracBa(dfCps, ds; gradLbl, yearVar = YearGroups, refYear);
+        end
+    end
+
+    show_earn_quantiles(dfCps, ds);
+    show_occup_stats(dfCps, ds);
 end
 
-run_stats(ds = data_settings(:default)) = run_stats(read_cps_data(ds), ds);
+run_stats(ds = data_settings(:default)) = run_stats(load_data(data_fn(ds)), ds);
 
 function save_grouped_stats(df, groups, ds; gradOccVar)
     dfU = stats_grouped(df, groups, ds; gradOccVar);
@@ -261,13 +270,13 @@ end
 Compute total mass and massBA by groups.
 """
 function mass_by_groups(df, grpVars; 
-        massVar = "mass", massBaVar = "massBA")
+        wtVar = WeightVar, massVar = "mass", massBaVar = "massBA")
     gdf2 = groupby(df, var_labels(grpVars));
     # Variable names must be Symbols
     dfOut = @combine gdf2 begin
         # :count = length($WeightVar);
-        $massVar = sum($WeightVar);
-        $massBaVar = sum($WeightVar .* :BAorMore);
+        $massVar = sum($wtVar);
+        $massBaVar = sum($wtVar .* :BAorMore);
     end
     return dfOut
 end
@@ -324,71 +333,204 @@ function show_stats_by_year(df, ds; gradOccVar = GradOccs)
 end
 
 
+function show_stats_grouped(dfCps, xVar, yVar, colorVar, ds;
+        outDir = diagnostics_dir(ds))
+    grpVars = [xVar, colorVar];
+    statsDf = stats_grouped(dfCps, grpVars, ds);
+    fig = line_graph_grouped(statsDf, xVar, yVar, colorVar);
+    fPath = joinpath(outDir, file_name(yVar, grpVars, FigureFile));
+    figsave(fPath, fig);
+end
+
+
 """
 Over time, show fraction of persons working in occupations with more than a given BA+ percenage.
 """
-function show_frac_by_occFracBa(df, ds)
-    df2 = frac_by_occFracBa(df, ds);
+function show_frac_by_occFracBa(dfCps, ds; 
+        yearVar = Years, refYear = nothing, gradLbl = nothing)
+    @assert var_label(yearVar) in names(dfCps);
+    df2 = frac_by_occFracBa(dfCps, ds; yearVar, refYear, ubV = 0.1 : 0.1 : 1.0);
+    fig, yLabel = plot_fracBA_by_groups(df2, yearVar; gradLbl, refYear);
 
-    plt = data(df2) *
-        mapping(
-            var_label(Years) => fig_label(Years), 
-            "frac" => "Fraction of all workers";
-            color = "fracBAgroup" => "Frac BA") *
-        visual(Lines);
-    fig = render(plt);
-    
-    fPath = fig_path("fracByOccFracBa", Years, ds);
-    figsave(fPath, fig; figNotes = [
-        "Fraction of all workers working in occupations with different fractions of BA or more workers.",
+    if isnothing(refYear)
+        refYrSuffix = "";
+    else
+        refYrSuffix = "_" * string(refYear);
+    end
+    baseFn = "fracByOccFracBa" * refYrSuffix * file_suffix(gradLbl);
+    fPath = fig_path(baseFn, yearVar, ds); 
+    figsave(fPath, fig; figData = df2, figNotes = [
+        "$(yLabel) working in occupations with different fractions of BA or more workers.",
         "Fraction BA or more is computed year by year."
     ]);
     return fPath
 end
 
-"""
-DataFrame with occupations grouped by fraction BA in each year.
-Also contains fraction of all workers in each occupation (by year).
-"""
-function frac_by_occFracBa(df, ds; ubV = [0.25, 0.5, 0.75, 1.0])
-    df2 = group_occs_by_frac_ba(df, ds; ubV);
+function plot_fracBA_by_groups(df2, yearVar; gradLbl = nothing, refYear = nothing)
+    @assert var_label(yearVar) in names(df2);
+    if is_grad(gradLbl)
+        yVar = "cumFracBAs";
+        yLabel = "Fraction of graduates";
+    elseif is_non_grad(gradLbl)
+        yVar = "cumFracNoBAs";
+        yLabel = "Fraction of non-grads";
+    elseif isnothing(gradLbl)
+        yVar = "cumFrac";
+        yLabel = "Fraction of all workers";
+    else
+        error("Not implemented for $gradLbl");
+    end
 
-    gdf = groupby(df2, ["fracBAgroup", var_label(Years)]);
+    plt = data(df2) *
+        mapping(
+            var_label(yearVar) => fig_label(yearVar), 
+            yVar => yLabel;
+            color = "fracBAgroup" => "Frac BA") *
+        visual(Lines);
+    
+    axisOpts = default_axis_opts();
+    set_fig_opt!(axisOpts, :limits, (nothing, nothing, 0.0, 1.0));
+    fig = render(plt; axis = axisOpts);
+    return fig, yLabel
+end
+
+"""
+DataFrame with occupations grouped by fraction BA in each year. Or in reference year, if `refYear` is provided.
+Also contains fraction of all workers in each occupation (by year).
+Drops occupations with missing data.
+
+test for grouping by reference year frac BA +++++
+"""
+function frac_by_occFracBa(dfCps, ds; 
+        ubV = [0.25, 0.5, 0.75, 1.0],
+        yearVar = Years, refYear = nothing)
+    BAgroupVar = "fracBAgroup";
+    df2 = group_occs_by_frac_ba(dfCps, yearVar, ubV, ds; refYear);
+
+    delete_missing_rows!(df2, BAgroupVar; silent = true);
+    dfOut = frac_by_group_yr(df2, BAgroupVar, yearVar);
+    return dfOut
+end
+
+
+"""
+The same, but occupations are grouped by fraction requiring BA.
+"""
+function show_frac_by_fracRequireBA(dfCps, ds; 
+        yearVar = Years, gradLbl = nothing)
+    df2 = frac_by_fracRequireBA(dfCps, ds; 
+        yearVar, ubV = [0.05, 0.1, 0.15, 0.25, 0.5, 0.75, 0.85, 1.0]);
+    fig, yLabel = plot_fracBA_by_groups(df2, yearVar; gradLbl, refYear = nothing);
+
+    baseFn = "fracByFracRequireBa" * file_suffix(gradLbl);
+    fPath = fig_path(baseFn, yearVar, ds); 
+    figsave(fPath, fig; figData = df2, figNotes = [
+        "$(yLabel) working in occupations with different fractions requiring BA."
+    ]);
+    return fPath
+end
+
+"""
+test this +++++
+"""
+function frac_by_fracRequireBA(dfCps, ds; ubV = 0.25 : 0.25 : 1.0, yearVar = Years)
+    BAgroupVar = "fracBAgroup";
+
+    dfCps[!, BAgroupVar] = categorical_from_ub(dfCps[!, var_label(FracRequireBA)], ubV);
+    df2 = mass_by_groups(dfCps, [BAgroupVar, yearVar]);
+
+    delete_missing_rows!(df2, BAgroupVar; silent = true);
+    dfOut = frac_by_group_yr(df2, BAgroupVar, yearVar);
+    return dfOut
+end
+
+
+
+
+"""
+Compute fraction of all, of BAs, and of Non-BAs in each (occupation) group and year.
+
+Input DataFrame has fields: mass, massBA (and grouping variables).
+
+test this +++++
+"""
+function frac_by_group_yr(df2, BAgroupVar, yearVar)
+    yrLbl = var_label(yearVar);
+    gdf = groupby(df2, [BAgroupVar, yrLbl]);
     dfOut = @combine gdf begin
         :mass = sum(:mass);
         :massBA = sum(:massBA);
     end
+    dfOut.massNoBA = dfOut.mass .- dfOut.massBA;
 
-    add_mass_by_year!(dfOut, df, ds; massVar = "yearMass");
+    # Add mass by year
+    gdf = groupby(df2, yrLbl);
+    dfMass = @combine gdf begin
+        :yearMass = sum(:mass);
+        :yearMassBA = sum(:massBA);
+    end
+    dfMass.yearMassNoBA = dfMass.yearMass .- dfMass.yearMassBA;
+    leftjoin!(dfOut, dfMass; on = yrLbl);
+
+    # add_mass_by_year!(dfOut, df2, ds; yearVar,  massVar = "yearMass");
 
     # Fraction all workers in occ
     dfOut.frac = dfOut.mass ./ dfOut.yearMass;
-    sort!(dfOut, var_label(Years));
+    # Fraction of BAs in occ
+    dfOut.fracBAs = dfOut.massBA ./ dfOut.yearMassBA;
+    dfOut.fracNoBAs = dfOut.massNoBA ./ dfOut.yearMassNoBA;
+    sort!(dfOut, var_label(yearVar));
+
+    # Make cumulative fractions
+    gdf = groupby(dfOut, var_label(yearVar));
+    df2 = @combine gdf begin
+        :cumFrac = cumsum(:frac);
+        :cumFracBAs = cumsum(:fracBAs);
+        :cumFracNoBAs = cumsum(:fracNoBAs);
+        $BAgroupVar = $BAgroupVar;  
+    end
+    dfOut = innerjoin(dfOut, df2; on = [var_label(yearVar), BAgroupVar]);
+
     return dfOut
 end
 
 """
-Group occupations by fraction BA in each year or year group.
+Group occupations by fraction BA in each year or year group. Optionally for a single ref year.
 Returns a DataFrame with occupations and groups coded as Categorical.
+There will be missing values.
 
 Tested by function that generates indicator for graduate occupations.
 """
-function group_occs_by_frac_ba(df, ds; 
-        yearVar = Years,
-        ubV = [0.25, 0.5, 0.75, 1.0], labelV = string.(round.(ubV, digits = 2)))
+function group_occs_by_frac_ba(df, yearVar, ubV, ds; 
+        refYear = nothing,
+        labelV = string.(round.(ubV, digits = 2)))
     df2 = stats_grouped(df, [Occupations, yearVar], ds);
     grpIdxV = recode_from_ub(df2.fracBA, ubV);
 
     dFrac = Dict(1 : length(ubV) .=> labelV);
     df2.fracBAgroup = categorical(recode_var(grpIdxV, dFrac; tgType = String));
+
+    if !isnothing(refYear)
+        yrLbl = var_label(yearVar);
+        BAgroupVar = "fracBAgroup";
+            # This variable will have missing values
+        df3 = @subset(df2, $yrLbl .== refYear);
+        @assert !isempty(df3);
+        select!(df3, var_label(Occupations), BAgroupVar);
+        # Avoid name conflict
+        rename!(df2, BAgroupVar => "fracBAgroupByYear");
+        leftjoin!(df2, df3; on = var_label(Occupations));
+    end
+
     return df2
 end
 
-function add_mass_by_year!(dfOut, df, ds; massVar = "yearMass")
-    dfY = stats_grouped(df, [Years], ds);
-    select!(dfY, var_label(Years), "mass");
-    rename!(dfY, "mass" => massVar);
-    leftjoin!(dfOut, dfY, on = var_label(Years));
+function add_mass_by_year!(dfOut, df, ds; 
+        yearVar = Years, massVar = "yearMass", massBaVar = massVar * "BA")
+    dfY = stats_grouped(df, [yearVar], ds);
+    select!(dfY, var_label(yearVar), "mass", "massBA");
+    rename!(dfY, "mass" => massVar, "massBA" => massBaVar);
+    leftjoin!(dfOut, dfY, on = var_label(yearVar));
 end
 
 
@@ -446,7 +588,7 @@ function show_frac_under_age_year(dfCps, ds; yearVar = YearGroups, gradOccVar = 
         yVar = FracUnder;
         fig = line_graph_grouped(statsDf, xVar, yVar, colorVar);
         
-        fPath = fig_path(fig_name(yVar), plotGrps, ds);
+        fPath = fig_path(base_name(yVar), plotGrps, ds);
         figsave(fPath, fig);
     end
 end

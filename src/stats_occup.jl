@@ -1,11 +1,13 @@
-function show_occup_stats(df, ds)
+function show_occup_stats(dfCps, ds)
+    occ_fracBA_over_time(dfCps, ds);
+    show_occ_wage_cdfs(dfCps, ds; gradsOnly = true);
+
     # DataFrame with occupations and their wages
-    gdf = occ_stats_df(df, ds);
+    gdf = occ_stats_df(dfCps, ds);
     show_occ_scatter_plots(gdf, ds);
-    for topBottom in (:top, :bottom)
-        show_top_bottom_occs(gdf, :topBottom, ds);
+    for topBottom in (:top, :bottom, :topBottom)
+        show_top_bottom_occs(gdf, topBottom, ds);
     end
-    show_occ_wage_cdfs(df, ds; gradsOnly = true);
     show_occ_highWage_lowFracBA(gdf, ds);
 end
 
@@ -94,5 +96,27 @@ function keep_top_bottom_rows(df, sortVar, nTop, nBottom)
 end
 
 
+function occ_fracBA_over_time(dfCps, ds)
+    statsDf = stats_grouped(dfCps, [Occupations, YearGroups], ds);
+    fig = scatter_across_year_groups(statsDf, FracBA, Occupations, ds);
+    figPath = fig_path(base_name(FracBA) * "_overTime", YearGroups, ds);
+    figsave(figPath, fig);
+end
+
+
+function scatter_across_year_groups(statsDf, yVar, grpVars, ds)
+    yrVar = var_label(YearGroups);
+    ny = length(ds.yearGroupUb);
+    df1 = @subset(statsDf, levelcode.($yrVar) .== 1);
+    df2 = @subset(statsDf, levelcode.($yrVar) .== ny);
+    rename!(df2, var_label(yVar) => :tmpY2);
+    dfOut = innerjoin(df1, df2; on = var_labels(grpVars), makeunique = true);
+    
+    scatter_plot(dfOut, yVar, "tmpY2"; yLabel = fig_label(yVar));
+end
+
+# function first_or_last_year_group(yrVar, nYrGroups)
+#     return (yrVar == 1)  ||  (yrVar == nYrGroups)
+# end
 
 # -----------------

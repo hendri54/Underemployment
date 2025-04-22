@@ -32,13 +32,12 @@ function earnings_regression(df, ds; useOccupations = false, outDir = nothing)
     rhs = ConstantTerm(1) + Term(:edLevel) + sum(xpTerms) + Term(:year);
     cDict = Dict(:year => DummyCoding());
     if !(ds.menOnly)
-        rhs = rhs + Term(:sex);
+        rhs = rhs + Term(var_symbol(Gender));
     end
     if useOccupations
         rhs = rhs + Term(:occup);
         cDict[:occup] = DummyCoding();
     end
-    # fmla = @formula(log(wage) ~ edLevel + xpRegr + xpRegr ^ 2 + xpRegr ^ 3 + xpRegr ^ 4 + sex + year);
     fmla = log_term(term(:wage)) ~ rhs;
     mdl = lm(fmla, df;   contrasts = cDict);
     if !isnothing(outDir)
@@ -169,16 +168,17 @@ end
 Graph by year: mean log wage residual, mean log occ wage
 for 4 groups: grads (underemployed or not), non-grads (in grad occs or not)
 """
-function show_earnings_stats(df, ds; gradOccVar = GradOccs)
+function show_earnings_stats(df, ds; gradOccVar = GradOccs, genderLbl = nothing)
     gradsGradOccVar = GradsGradOccs;
-        # grads_grad_occ_var(gradOccVar);
+        
+    df2 = subset_gender(df, genderLbl);
     grpVars = [gradsGradOccVar, Years];
-    statsDf = stats_grouped(df, grpVars, ds; gradOccVar);
+    statsDf = stats_grouped(df2, grpVars, ds; gradOccVar);
 
     for v in [MeanLogOccupWage, MeanLogWageResidual]
         fig = line_graph_grouped(statsDf, Years, v, gradsGradOccVar;
             yLabel = fig_label(v));
-        fPath = fig_path(var_label(v), grpVars, ds);
+        fPath = fig_path(base_name(v) * file_suffix(genderLbl), grpVars, ds);
         figsave(fPath, fig);
     end
 end
@@ -189,7 +189,7 @@ Show earnings quantiles. For all and for grads.
 """
 function show_earn_quantiles(df, ds)
     grpVars = [YearGroups, Grads];
-    dfGrads = subset_grads(df);
+    dfGrads = subset_grads(df, GradLabel);
     for varName in (LogOccupWage, LogWageResidual, LogWage)
         show_quantiles_grouped(df, varName, grpVars, [0.25, 0.75], ds);
         show_quantiles_grouped(dfGrads, varName, YearGroups, 
@@ -245,7 +245,7 @@ Show occupational wage cdfs by year group. Graduates only by default.
 function show_occ_wage_cdfs(dfCps, ds; gradsOnly = true)
     dfCps.tmpWt = copy(dfCps[!, WeightVar]);
     if gradsOnly
-        idxV = find_non_grads(dfCps);
+        idxV = find_grads(dfCps, NonGradLabel);
         dfCps.tmpWt[idxV] .= 0.0;
         suffix = file_suffix(Grads);
     else

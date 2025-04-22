@@ -63,7 +63,7 @@ end
 ## ---------------  Saving figures
 
 function figsave(filePath :: String, p; 
-    figNotes = nothing, dataM = nothing)
+    figNotes = nothing, figData = nothing)
 
     @assert !(p isa Tuple)  "Tuple input $p. Expecting a Figure";
     # newPath = change_extension(filePath, FigExtension);
@@ -76,8 +76,8 @@ function figsave(filePath :: String, p;
     isfile(newPath)  &&  rm(newPath);
     save(newPath, p);
     
-    save_fig_notes(figNotes, filePath);
-    # save_fig_data(dataM, filePath; io);
+    save_fig_notes(filePath, figNotes);
+    save_fig_data(filePath, figData);
     return filePath
 end
 
@@ -85,22 +85,37 @@ figsave(fDir :: String, fName :: String, p; figNotes = nothing) =
     figsave(joinpath(fDir, fName), p; figNotes);
 
 
-function save_fig_notes(figNotes :: AbstractVector, 
-        fPath :: AbstractString)
+function save_fig_notes(fPath :: AbstractString, figNotes :: AbstractVector)
     save_text_file(fig_notes_path(fPath), figNotes);
 end
 
-function save_fig_notes(figNotes :: AbstractString, 
-        fPath :: AbstractString)
-    save_fig_notes([figNotes], fPath);
+function save_fig_notes(fPath :: AbstractString, figNotes :: AbstractString)
+    save_fig_notes(fPath, [figNotes]);
 end
 
-function save_fig_notes(::Nothing, fPath) end
+function save_fig_notes(fPath :: AbstractString, ::Nothing) end
 
 function fig_notes_path(fPath :: AbstractString)
     newDir = fig_data_dir(fPath);
     fDir, fName = splitdir(fPath);
-    newPath = joinpath(newDir, change_extension(fName, ".txt"));
+    fName, _ = splitext(fName);
+    newPath = joinpath(newDir, fName * "_notes" * TextExtension);
+    return newPath
+end
+
+
+function save_fig_data(fPath :: AbstractString, figData)
+    save_data(fig_data_path(fPath, DataFile), figData);
+    save_output(fig_data_path(fPath, TextFile), figData);
+end
+
+function save_fig_data(fPath :: AbstractString, ::Nothing) end;
+
+function fig_data_path(fPath :: AbstractString, fType :: FileType)
+    newDir = fig_data_dir(fPath);
+    fDir, fName = splitdir(fPath);
+    fName, _ = splitext(fName);
+    newPath = joinpath(newDir, fName * "_data" * fType.extension);
     return newPath
 end
 
@@ -110,7 +125,7 @@ function fig_data_dir(fPath :: AbstractString)
     isdir(newDir)  ||  mkpath(newDir);
     return newDir
 end
-
+    
 
 ## ----------  Line graph
 

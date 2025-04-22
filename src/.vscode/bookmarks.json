@@ -1,20 +1,15 @@
 {
 	"files": [
 		{
-			"path": "figures.jl",
-			"bookmarks": [
-				{
-					"line": 142,
-					"column": 42,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "stats.jl",
 			"bookmarks": [
 				{
-					"line": 470,
+					"line": 418,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 612,
 					"column": 1,
 					"label": ""
 				}
@@ -64,7 +59,7 @@
 			"path": "earn_regression.jl",
 			"bookmarks": [
 				{
-					"line": 78,
+					"line": 77,
 					"column": 0,
 					"label": ""
 				}
@@ -74,7 +69,7 @@
 			"path": "stats_occup.jl",
 			"bookmarks": [
 				{
-					"line": 29,
+					"line": 31,
 					"column": 19,
 					"label": ""
 				}

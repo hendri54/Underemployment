@@ -1,3 +1,23 @@
+## -------------  File names
+
+base_name(v :: VarInfo) = v.name;
+base_name(g :: Grouping) = g.varLabel;
+base_name(x) = string(x);
+base_name(varNameV :: AbstractVector) = join(base_name.(varNameV), "-");
+
+file_suffix(g :: Grouping) = "_" * g.suffix;
+file_suffix(v :: MultiGrouping) = "_" * prod([g.suffix for g in v]);
+file_suffix(s :: AbstractString) = "_" * s;
+file_suffix(::Nothing) = "";
+
+file_name(baseFn, groups, fType :: FileType) = 
+    base_name(baseFn) * file_suffix(groups) * fType.extension;
+file_name(varNameV :: AbstractVector, groups, fType :: FileType) =
+    file_name(base_name(varNameV), groups, fType);
+
+
+## -----------  Load / save
+
 """
 Save any data. Not permanent.
 """
@@ -86,16 +106,8 @@ out_path(baseFn :: AbstractString, groups, fType :: FileType, ds) =
     joinpath(out_dir(ds), file_name(baseFn, groups, fType));
 
 fig_path(baseFn :: AbstractString, groups, ds) = joinpath(out_dir(ds), fig_fn(baseFn, groups));
-
-file_name(baseFn :: AbstractString, groups, fType :: FileType) = 
-    baseFn * file_suffix(groups) * fType.extension;
 fig_fn(baseFn :: AbstractString, groups) = file_name(baseFn, groups, FigureFile);
 
-file_name(varNameV :: AbstractVector, groups, fType :: FileType) =
-    file_name(base_name(varNameV), groups, fType);
-
-base_name(varNameV :: AbstractVector) = 
-    join(var_labels(varNameV), "-");
 
 
 """

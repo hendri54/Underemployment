@@ -117,7 +117,7 @@ function should_drop_row(dfRow, ds)
             (dfRow.weeksWorked < ds.minWeeksWorked) || 
             (dfRow.weeksWorked > ds.maxWeeksWorked)
         toDrop = true;
-    elseif ds.menOnly && (dfRow.sex != "male")
+    elseif ds.menOnly && (get_var(dfRow, Gender) != MaleLabel)
         toDrop = true;
     end
     return toDrop
@@ -191,8 +191,8 @@ Tests itself.
 function grad_occs_by_frac_ba(df, ds)
     yearVar = YearGroups;
     ubV = [0.5, 1.0];
-    dfOY = group_occs_by_frac_ba(df, ds; yearVar,
-        ubV, labelV = grad_occ_labels(ds));
+    dfOY = group_occs_by_frac_ba(df, yearVar, ubV, ds;
+        labelV = grad_occ_labels(ds));
 
     filter_ref_year_group!(dfOY);
 

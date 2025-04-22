@@ -14,6 +14,7 @@ const AgeGroups = Grouping("ageGroup", "Age group", "Ag");
 const Occupations = Grouping("occup", "Occupation", "O");
 const Years = Grouping("year", "Year", "Y");
 const Grads = Grouping("grad", "Graduate", "G");
+const Gender = Grouping("gender", "Gender", "S");
 
 # Different ways of defining graduate occupations and who works in them
 const GradOccs = Grouping("gradOcc", "Graduate occupations", "Go");
@@ -50,10 +51,6 @@ var_labels(g :: Grouping) = [g.varLabel];
 var_labels(g :: MultiGrouping) = var_label.(g);
 var_labels(v :: AbstractVector) = var_label.(v);
 
-file_suffix(g :: Grouping) = "_" * g.suffix;
-file_suffix(v :: MultiGrouping) = "_" * prod([g.suffix for g in v]);
-file_suffix(::Nothing) = "";
-
 fig_label(g :: Grouping) = g.descr;
 fig_label(::Nothing) = nothing;
 fig_label(g) = string(g);
@@ -80,7 +77,7 @@ function merge_groups(g1, g2)
 end
 
 
-## -----------  Specific
+## -----------  GradOccs
 
 grad_occ_labels(ds) = [NonGradOccLabel, GradOccLabel];
 
@@ -114,28 +111,47 @@ function subset_not_grad_occs(df :: AbstractDataFrame, gradOccVar)
 end
 
 
+## ----------  Grads
+
 is_grad(dfRow :: DataFrameRow) = is_grad(dfRow[var_label(Grads)]);
 is_grad(g :: CategoricalValue) = (g == GradLabel);
 is_grad(g :: AbstractString) = (g == GradLabel);
+is_grad(::Nothing) = false;
+
+is_non_grad(g :: AbstractString) = (g == NonGradLabel);
+is_non_grad(::Nothing) = false;
 
 # Cannot do that for GroupedDataFrame.
-function subset_grads!(df :: AbstractDataFrame)
-    subset(df, var_label(Grads) => (x -> x .== GradLabel));
+function subset_grads!(df :: AbstractDataFrame, gradLbl :: AbstractString)
+    subset!(df, var_label(Grads) => (x -> x .== gradLbl));
+end
+subset_grads!(df :: AbstractDataFrame, :: Nothing) = df;
+
+function subset_grads(df :: AbstractDataFrame, gradLbl :: AbstractString)
+    subset(df, var_label(Grads) => (x -> x .== gradLbl));
+end
+subset_grads(df :: AbstractDataFrame, :: Nothing) = copy(df);
+
+function find_grads(df :: AbstractDataFrame, gradLbl :: AbstractString)
+    return findall(x -> x == gradLbl, df[!, var_label(Grads)]);
 end
 
-# test this +++++
-function subset_grads(df :: AbstractDataFrame)
-    subset(df, var_label(Grads) => (x -> x .== GradLabel));
+# function find_non_grads(df :: AbstractDataFrame, gradLbl :: AbstractString)
+#     return findall(x -> x != gradLbl, df[!, var_label(Grads)]);
+# end
+
+
+## ---------  Gender
+
+function subset_gender(df :: AbstractDataFrame, gValue :: AbstractString)
+    subset(df, var_label(Gender) => (x -> x .== gValue));
+end
+function subset_gender(df :: AbstractDataFrame, :: Nothing)
+    return df
 end
 
-# test this +++++
-function find_grads(df :: AbstractDataFrame)
-    return findall(x -> x == GradLabel, df[!, var_label(Grads)]);
-end
+fixed_codes(Gender) = (nothing, MaleLabel, FemaleLabel);
 
-function find_non_grads(df :: AbstractDataFrame)
-    return findall(x -> x != GradLabel, df[!, var_label(Grads)]);
-end
 
 
 ## ----------  Testing

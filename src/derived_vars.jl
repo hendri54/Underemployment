@@ -14,8 +14,9 @@ function add_derived_vars!(df :: DataFrame, ds)
     df[!, :BAorMore] = has_ba(df);
     df[!, var_label(Grads)] = ba_categorical(df.BAorMore);
     # df[!, :isWhite] = df.race .== 1;
-    df.isMale = (df.sex .== 1);
-    df.sex = make_sex(df.sex);
+    rename!(df, :sex => var_label(Gender));
+    df[!, var_label(Gender)], df.isMale = 
+        make_gender(df[!, var_label(Gender)]);
     df.race = CategoricalArray(valuelabels(df.race));
     df.occup = CategoricalArray(valuelabels(df[!, OccVar]));
     df.marst = CategoricalArray(valuelabels(df.marst));
@@ -23,10 +24,6 @@ function add_derived_vars!(df :: DataFrame, ds)
     df[!, CpsOccVar] = refarray(df[!, OccVar]);
     df.ageGroup = make_age_groups(df.age, ds);
     df.yearGroup = make_year_groups(df.year, ds);
-    # df[!, :raceCat] = recode_race(df.race);
-    # if !ds[:menOnly]
-    #     df[!, :sexCat] = recode_sex(df.sex);
-    # end
 end
 
 
@@ -36,14 +33,6 @@ Not categorical.
 """
 function recode_var(v :: AbstractVector, dCodes :: Dict; tgType = Union{Missing, Float64})
     return Vector{tgType}(map(x -> dCodes[x], v));
-end
-
-@testitem "recode var" begin
-    using Underemployment, Test;
-    dCodes = Dict(2 => "two", 1 => "one", 3 => missing);
-    v = [3, 2, 1];
-    r = Underemployment.recode_var(v, dCodes; tgType = Union{Missing, String});
-    @test all(isequal.(r ,[missing, "two", "one"]));
 end
 
 
@@ -62,38 +51,23 @@ function recode_from_ub(v :: AbstractVector, ub :: AbstractVector)
     return [findfirst(ub1 -> ub1 >= x, ub) for x in v]
 end
 
-@testitem "recode_from_ub" begin
-    using Underemployment, Test;
-
-    function check_recode(v, r, ubV)
-        if r == 1
-            return (v <= ubV[r])
-        else
-            return (v <= ubV[r])  &&  (v > ubV[r-1]);
-        end
-    end
-
-    ubV = [0.3, 0.8, 1.0];
-    n = 50;
-    rng = Underemployment.make_rng(34);
-    v = rand(rng, n);
-    r = Underemployment.recode_from_ub(v, ubV);
-
-    validV = check_recode.(v, r, Ref(ubV));
-    @test all(validV);
-
-    r1 = Underemployment.recode_from_ub([1.0], ubV);
-    @test r1 == [3];
+# test this +++++
+function categorical_from_ub(v :: AbstractVector, ubV :: AbstractVector;
+        labelV = string.(round.(ubV, digits = 2)))
+    grpIdxV = recode_from_ub(v, ubV);
+    dFrac = Dict(1 : length(ubV) .=> labelV);
+    return categorical(recode_var(grpIdxV, dFrac; tgType = String));
 end
 
 
-function make_sex(sexV)
-    v = recode_var(sexV, sex_codes(); 
-        tgType = Union{Missing, String});
-    return categorical(v)
+
+function make_gender(genderV)
+    isMaleV = (genderV .== 1);
+    v = recode_var(genderV, gender_codes();  tgType = Union{Missing, String});
+    return categorical(v), isMaleV
 end
 
-sex_codes() = Dict(1 => "male", 2 => "female");
+gender_codes() = Dict(1 => MaleLabel, 2 => FemaleLabel);
 
 
 function make_year_groups(yearV, ds)
